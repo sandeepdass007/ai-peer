@@ -145,7 +145,9 @@ Improve error handling, migrations, logging, backup/restore, model management, l
 
 ## First end-to-end learning journey
 
-Use a single topic (the original plan suggests Introduction to Neural Networks) with one PDF chapter, one presentation, a transcript, and explicit learning objectives. Validate the complete path: assess → plan → retrieve → teach → visualize → practice → evaluate → adapt → save → export. This should validate the core product before broadening formats or agents.
+The first learning journey will be **AI and LLM application fundamentals**, chosen by the learner. Use it to build both the learner’s understanding and, later, to validate AI Peer itself. A possible progression is: AI vs. machine learning vs. deep learning vs. generative AI; data, models, training, and inference; neural network and transformer foundations; tokens and context; prompting and model limitations; embeddings and retrieval; RAG; tool use and workflows; evaluation and safety; local model application design. Adjust pace and depth based on the learner’s starting point. The original plan’s Introduction to Neural Networks example remains a useful alternative course and is preserved in the full detailed plan.
+
+When the app reaches its document-grounded milestone, use supplied learning materials and explicit objectives to validate the complete path: assess → plan → retrieve → teach → visualize → practice → evaluate → adapt → save → export. This should validate the core product before broadening formats or agents.
 
 ## Risks to design for
 
@@ -165,10 +167,24 @@ Do not begin with a large autonomous multi-agent system, a dedicated graph datab
 
 ## Decisions to make before implementation
 
-1. **Hardware:** operating system, RAM, processor/GPU and VRAM, and available disk space. This informs local model and processing choices.
-2. **Programming experience:** beginner, intermediate, or advanced, to set the pace and depth of implementation guidance.
-3. **Meaning of standalone:** fully offline after setup; local-first with optional internet for permitted resources/research; and/or desktop application. These can be combined.
+1. **Hardware:** iMac with Apple M4 and 24 GB memory. Check available disk space and validate model performance during setup.
+2. **Programming experience:** comfortable with Python and experienced with Java. Guidance can assume programming fundamentals while explaining AI-specific concepts and tradeoffs.
+3. **Meaning of standalone:** local-first, capable of working both offline and with internet access. Optional internet can support permitted source retrieval or updates; the first version should not depend on cloud inference.
+4. **Future product direction:** licensing and offering the app offline or online are possibilities to keep in mind, not requirements for the first version. Keep boundaries clean enough to allow future options and review model/dependency licenses before any distribution.
+
+## Current starting direction
+
+Begin with a local tutor and one local model, then add source-grounded learning and progress tracking. Do not commit to an online service, cloud storage, or commercial packaging in the first milestone. Select concrete models and versions when we set up the environment, based on current compatibility and measured performance on the M4 with 24 GB memory.
+
+### Phase 1 progress
+
+- Created a first Streamlit tutor prototype in `app.py` that calls Ollama’s local chat API and lists installed local models.
+- Added setup instructions and project-local dependency metadata.
+- Installed Streamlit into `.venv` and started the app at `http://127.0.0.1:8501`.
+- Installed Ollama 0.40.6 and downloaded `gemma4:e4b` (about 9.5 GB); the learner confirmed the model responds locally.
+- The learner's manually written `first_app.py` now calls Ollama and includes a tutor-focused system message. `app.py` is a separate reference prototype with session-based conversation history.
+- Added `.streamlit/config.toml` with browser usage statistics disabled.
 
 ## Working agreement for this project
 
-Use this plan as the baseline and maintain decisions and changes here (or in linked project docs) so project knowledge persists across separate chats. Before choosing versions or implementing fast-changing libraries, verify current compatibility and fit. We will make the next concrete implementation plan after the three open decisions above are understood.
+Use this plan as the baseline and maintain decisions and changes here (or in linked project docs) so project knowledge persists across separate chats. The learner writes the application code; guide with small implementation steps, explain concepts as they arise, and review or debug learner-written code. Pause for deeper discussion when a concept materially affects a design decision. Before choosing versions or implementing fast-changing libraries, verify current compatibility and fit.
