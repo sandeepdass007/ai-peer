@@ -46,6 +46,10 @@ The learner manually created and ran a minimal Streamlit page in `first_app.py` 
 
 The learner installed Ollama 0.40.6, downloaded the `gemma4:e4b` model (about 9.5 GB), and confirmed it responds locally without an internet connection. In `first_app.py`, the learner added an `ask_ollama` function that sends a prompt to Ollama's local chat API, then added a system message defining AI Peer as a patient tutor. The learner tested it with a Java lambda question and liked the detailed example. Browser usage statistics were disabled in `.streamlit/config.toml`.
 
-### Next implementation step: conversation history
+### Conversation history
 
-The current learner-authored `first_app.py` sends only the current prompt to Ollama, so follow-up questions do not yet include earlier turns. The separate `app.py` reference prototype already demonstrates Streamlit session state and sending prior messages. Guide the learner to add history in `first_app.py` one small step at a time; do not implement it for them. First explain how `st.session_state` preserves values across Streamlit reruns, then help them maintain a message list and pass it to Ollama.
+The learner added a `messages` list in `st.session_state`, changed `ask_ollama` to accept the message history, and appends each user prompt and assistant response. The full transcript is rendered with `st.chat_message` after each Streamlit rerun. The learner confirmed that follow-up prompts are answered with context from earlier messages. The transcript currently displays in chronological order; the learner chose to defer cosmetic changes and keep the focus on functionality.
+
+### Next implementation step
+
+Add graceful error handling around the local Ollama request in the learner-authored `first_app.py`, so connection and API errors produce a helpful in-app message instead of an unhandled traceback. Continue guiding with small explanations and code steps; the learner types the application code.
