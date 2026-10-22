@@ -184,6 +184,7 @@ Begin with a local tutor and one local model, then add source-grounded learning 
 - Installed Ollama 0.40.6 and downloaded `gemma4:e4b` (about 9.5 GB); the learner confirmed the model responds locally.
 - The learner's manually written `first_app.py` now calls Ollama and includes a tutor-focused system message. `app.py` is a separate reference prototype with session-based conversation history.
 - Added `.streamlit/config.toml` with browser usage statistics disabled.
+- Started source-grounded tutoring in `first_app.py`: upload one plain-text file, send its full text with the conversation to the local model, and instruct the model to treat the file as untrusted source material. The learner verified that answers use supported facts and acknowledge when a question is not covered. This is a first small-file prototype; chunking, retrieval, and citations remain future work.
 
 ## Working agreement for this project
 

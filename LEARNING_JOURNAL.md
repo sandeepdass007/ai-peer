@@ -53,3 +53,7 @@ The learner added a `messages` list in `st.session_state`, changed `ask_ollama` 
 ### Reliability and conversation controls
 
 The learner added `HTTPError` handling for Ollama API errors and `URLError`/`TimeoutError` handling for connection failures in `first_app.py`. The learner tested the unavailable-server case by stopping Ollama in Activity Monitor; AI Peer showed the expected connection message instead of a traceback. The learner also added a **Clear conversation** button that empties `st.session_state.messages`; the transcript is cleared on the resulting rerun. Continue guiding with small explanations and code steps; the learner types the application code.
+
+### First source-grounded tutoring flow
+
+The learner added a `.txt` uploader, reads its UTF-8 contents, and passes the text separately from the visible chat history into `ask_ollama`. The request labels the document as reference material and the system message tells the model to treat it as untrusted source text, use it as evidence, and say when it does not support an answer. A sample neural-network text file was added to the project for practice. The learner confirmed that a question covered by the file was answered from it and that an out-of-scope question was identified as not covered. Current implementation sends the whole small file with each request; relevant-passage retrieval and citations are future work.

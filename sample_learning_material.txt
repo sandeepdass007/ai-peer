@@ -1,0 +1,11 @@
+Neural Networks: A Short Introduction
+
+A neural network is a computer model that learns patterns from examples. It is made of connected units often called neurons. The name is inspired by the brain, but an artificial neural network is a mathematical system, not a small copy of a human brain.
+
+Neural networks are commonly organized into layers. The input layer receives information, such as measurements about a flower. One or more hidden layers transform that information. The output layer produces a result, such as a predicted flower species.
+
+Connections between units have numerical values called weights. A unit combines its inputs using these weights and a bias, then applies an activation function. During training, the network compares its prediction with the expected answer. An optimization method adjusts the weights and biases to reduce the error over many examples.
+
+After training, the network can use the patterns stored in its weights to make predictions about new inputs. This use of a trained model is called inference. For example, a network trained on labeled flower measurements may predict the species of a flower it has not seen before.
+
+A neural network's prediction is not automatically correct or well explained. Its performance depends on the training data, the model design, and how it is evaluated. A network can learn misleading patterns when its examples are incomplete or biased, so predictions should be checked for the intended use.
