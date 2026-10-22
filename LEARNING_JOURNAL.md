@@ -50,6 +50,6 @@ The learner installed Ollama 0.40.6, downloaded the `gemma4:e4b` model (about 9.
 
 The learner added a `messages` list in `st.session_state`, changed `ask_ollama` to accept the message history, and appends each user prompt and assistant response. The full transcript is rendered with `st.chat_message` after each Streamlit rerun. The learner confirmed that follow-up prompts are answered with context from earlier messages. The transcript currently displays in chronological order; the learner chose to defer cosmetic changes and keep the focus on functionality.
 
-### Next implementation step
+### Reliability and conversation controls
 
-Add graceful error handling around the local Ollama request in the learner-authored `first_app.py`, so connection and API errors produce a helpful in-app message instead of an unhandled traceback. Continue guiding with small explanations and code steps; the learner types the application code.
+The learner added `HTTPError` handling for Ollama API errors and `URLError`/`TimeoutError` handling for connection failures in `first_app.py`. The learner tested the unavailable-server case by stopping Ollama in Activity Monitor; AI Peer showed the expected connection message instead of a traceback. The learner also added a **Clear conversation** button that empties `st.session_state.messages`; the transcript is cleared on the resulting rerun. Continue guiding with small explanations and code steps; the learner types the application code.

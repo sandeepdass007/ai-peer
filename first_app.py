@@ -1,6 +1,7 @@
 import json
 from urllib.request import Request, urlopen
 import streamlit as st
+from urllib.error import HTTPError, URLError
 
 def ask_ollama(messages: list[dict[str, str]]) -> str:
   request_body = {
@@ -43,6 +44,9 @@ topic = st.text_input(
   placeholder="e.g., How language models work?"
 )
 
+if st.button("Clear conversation"):
+  st.session_state.messages = []
+
 if st.button("Start Learning"):
   if topic:
     with st.spinner("AI Peer is thinking..."):
@@ -52,13 +56,19 @@ if st.button("Start Learning"):
           "content": topic
         }
       )
-      answer = ask_ollama(st.session_state.messages)
-      st.session_state.messages.append(
-        {
-          "role": "assistant",
-          "content": answer
-        }
-      )
+      try:
+        answer = ask_ollama(st.session_state.messages)
+      except HTTPError as error:
+        st.error(f"Ollama returned an error (HTTP {error.code}).")
+      except (URLError, TimeoutError):
+        st.error("Could not reach Ollama. Check that it is running.")
+      else:
+        st.session_state.messages.append(
+          {
+            "role": "assistant",
+            "content": answer
+          }
+        )
   else:
     st.warning("Enter a topic before starting.")
 
