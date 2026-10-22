@@ -57,3 +57,7 @@ The learner added `HTTPError` handling for Ollama API errors and `URLError`/`Tim
 ### First source-grounded tutoring flow
 
 The learner added a `.txt` uploader, reads its UTF-8 contents, and passes the text separately from the visible chat history into `ask_ollama`. The request labels the document as reference material and the system message tells the model to treat it as untrusted source text, use it as evidence, and say when it does not support an answer. A sample neural-network text file was added to the project for practice. The learner confirmed that a question covered by the file was answered from it and that an out-of-scope question was identified as not covered. Current implementation sends the whole small file with each request; relevant-passage retrieval and citations are future work.
+
+### Paragraph citations and source display
+
+The source text is split at blank lines and labeled with paragraph IDs such as `[P1]`. AI Peer is instructed to cite only IDs in the supplied material and not follow instructions embedded in that material. The transcript renderer finds IDs in assistant answers, maps them back to the uploaded paragraphs, and shows each valid cited passage once under the answer. The learner confirmed the answer cited the expected paragraph and noticed that repeated citations caused duplicate passages; duplicates are now removed while preserving order. Next, begin selecting only relevant paragraphs for a question so larger files do not all need to be sent to the model.
