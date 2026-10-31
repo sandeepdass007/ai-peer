@@ -1,10 +1,59 @@
 import re
+import math
 import json
 from urllib.request import Request, urlopen
 import streamlit as st
 from urllib.error import HTTPError, URLError
 
-def ask_ollama(messages: list[dict[str, str]], source_paragraphs: list[str]) -> str:
+def cosine_similarity(vector_a, vector_b):
+  dot_product = sum(a * b for a,b in zip(vector_a, vector_b))
+  
+  magnitude_a = math.sqrt(sum(value ** 2 for value in vector_a))
+  magnitude_b = math.sqrt(sum(value ** 2 for value in vector_b))
+  
+  return dot_product / (magnitude_a * magnitude_b)
+
+def get_embedding(text: str, task_type: str) -> list[float]:
+  request_body = {
+    "model": "nomic-embed-text",
+    "prompt": f"{task_type}: {text}"
+  }
+  
+  request = Request(
+    "http://localhost:11434/api/embeddings",
+    data=json.dumps(request_body).encode("utf-8"),
+    headers={"Content-Type": "application/json"},
+    method="POST"
+  )
+  
+  with urlopen(request, timeout=60) as response:
+    result = json.loads(response.read().decode("utf-8"))
+    
+  return result["embedding"]
+
+def find_relevant_paragraphs(
+  question: str,
+  paragraphs: list[str]
+) -> list[tuple[int, str]]:
+  question_embedding = get_embedding(question, "search_query")
+  ranked_paragraphs = []
+  
+  for paragraph_number, paragraph in enumerate(paragraphs, start=1):
+    paragraph_embedding = get_embedding(paragraph, "search_document")
+    similarity = cosine_similarity(question_embedding, paragraph_embedding)
+    
+    if similarity >= 0.4:
+      ranked_paragraphs.append(
+        (similarity, paragraph_number, paragraph)
+      )
+  ranked_paragraphs.sort(key=lambda item: item[0], reverse=True)
+  
+  return [
+    (paragraph_number, paragraph)
+    for similarity, paragraph_number, paragraph in ranked_paragraphs[:3]
+  ]
+      
+def ask_ollama(messages: list[dict[str, str]], relevant_paragraphs: list[tuple[int, str]]) -> str:
   request_messages = [
     {
       "role": "system",
@@ -21,11 +70,11 @@ def ask_ollama(messages: list[dict[str, str]], source_paragraphs: list[str]) -> 
   
   
   labeled_source = "\n\n".join(
-    f"[P{index}] {paragraph}"
-    for index, paragraph in enumerate(source_paragraphs, start=1)
+    f"[P{paragraph_number}] {paragraph}"
+    for paragraph_number, paragraph in relevant_paragraphs
   )
   
-  if source_paragraphs:
+  if relevant_paragraphs:
     request_messages.append(
       {
         "role": "user",
@@ -95,25 +144,32 @@ if st.button("Clear conversation"):
 if st.button("Start Learning"):
   if topic:
     with st.spinner("AI Peer is thinking..."):
-      st.session_state.messages.append(
-        {
-          "role": "user",
-          "content": topic
-        }
-      )
-      try:
-        answer = ask_ollama(st.session_state.messages, source_paragraphs)
-      except HTTPError as error:
-        st.error(f"Ollama returned an error (HTTP {error.code}).")
-      except (URLError, TimeoutError):
-        st.error("Could not reach Ollama. Check that it is running.")
+      relevant_paragraphs = find_relevant_paragraphs(topic, source_paragraphs)
+      
+      if source_paragraphs and not relevant_paragraphs:
+        st.warning(
+          "No matching paragraphs found. Try using words from the uploaded material."
+        )
       else:
         st.session_state.messages.append(
           {
-            "role": "assistant",
-            "content": answer
+            "role": "user",
+            "content": topic
           }
         )
+        try:
+          answer = ask_ollama(st.session_state.messages, relevant_paragraphs)
+        except HTTPError as error:
+          st.error(f"Ollama returned an error (HTTP {error.code}).")
+        except (URLError, TimeoutError):
+          st.error("Could not reach Ollama. Check that it is running.")
+        else:
+          st.session_state.messages.append(
+            {
+              "role": "assistant",
+              "content": answer
+            }
+          )
   else:
     st.warning("Enter a topic before starting.")
 
