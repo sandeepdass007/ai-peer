@@ -61,3 +61,13 @@ The learner added a `.txt` uploader, reads its UTF-8 contents, and passes the te
 ### Paragraph citations and source display
 
 The source text is split at blank lines and labeled with paragraph IDs such as `[P1]`. AI Peer is instructed to cite only IDs in the supplied material and not follow instructions embedded in that material. The transcript renderer finds IDs in assistant answers, maps them back to the uploaded paragraphs, and shows each valid cited passage once under the answer. The learner confirmed the answer cited the expected paragraph and noticed that repeated citations caused duplicate passages; duplicates are now removed while preserving order. Next, begin selecting only relevant paragraphs for a question so larger files do not all need to be sent to the model.
+
+### Semantic retrieval, embeddings, and caching
+
+The learner added local semantic retrieval using Ollama's `nomic-embed-text` model. The app embeds questions with Nomic's `search_query` prefix and source paragraphs with `search_document`, compares vectors with cosine similarity, applies an initial `0.4` cutoff, and selects up to three passages. The learner reported that “How weights work?” found relevant material while an unrelated quantum-entanglement question did not. The learner also added a session-state cache keyed by source paragraph text so document embeddings can be reused across questions in the same session.
+
+The learner asked that new concepts, libraries, and technologies be explained before implementation, and requested comments and documentation explaining why the code exists. Going forward, use function-sized guided steps, include purposeful docstrings/comments with code suggestions, review their edits directly, and update the walkthrough when the data flow or concepts change.
+
+### Chunking
+
+The learner added a `create_chunks` helper that splits long paragraphs into overlapping word windows while retaining each original paragraph number for citations. This helper is not yet connected to semantic retrieval. The helper's loop variable was mistyped initially; that was corrected. Continue by reviewing the helper and then connect chunk records to embedding and retrieval without losing original citation IDs.

@@ -41,3 +41,7 @@ Ollama serves the model locally at `http://localhost:11434`. The app uses that l
 - Does not yet ingest documents, save long-term progress, or use LangChain/LangGraph.
 
 The complete project vision and planning options are in [PROJECT_PLAN.md](PROJECT_PLAN.md) and [ORIGINAL_DETAILED_PLAN.txt](ORIGINAL_DETAILED_PLAN.txt).
+
+## Learning the prototype
+
+The guided explanation of the learner-authored app is in [docs/first-app-walkthrough.md](docs/first-app-walkthrough.md). The current semantic-search flow is also shown in [diagrams/semantic-search.md](diagrams/semantic-search.md).
