@@ -6,15 +6,17 @@ For a visual version of the semantic retrieval path, see [the semantic-search di
 
 ## The end-to-end flow
 
-When the learner uploads a text file and asks a question, the app:
+When the learner uploads a text or PDF file and asks a question, the app:
 
-1. Reads the UTF-8 text and splits it at blank lines. Each resulting paragraph is the current source unit and keeps a stable number such as `P1`.
-2. Embeds the question with the `search_query` prefix.
-3. Embeds each source paragraph with the `search_document` prefix. It saves these document embeddings in Streamlit session state so later questions about the same text can reuse them.
-4. Compares the question embedding with each paragraph embedding using cosine similarity.
-5. Keeps paragraphs scoring at least `0.4`, sorts them from highest to lowest score, and selects up to three.
-6. Sends the conversation and selected, labeled passages to the local Gemma chat model.
-7. Renders the answer and displays the original source paragraph for each valid citation it contains.
+1. Reads a `.txt` file as UTF-8 and splits it at blank lines, labeling paragraphs `P1`, `P2`, etc. For a `.pdf`, `extract_pdf_pages` extracts selectable text page by page and retains each one-based page number.
+2. Converts either kind of input into labeled source records such as `("P1", text)` or `("Page 1", text)`. Scanned image-only PDF pages do not provide selectable text and are skipped; OCR is not implemented yet.
+3. Splits each labeled source into word-based chunks. The default chunk size is 150 words with 25 words of overlap; each chunk retains its source label.
+4. Embeds the question with the `search_query` prefix.
+5. Embeds each chunk's text with the `search_document` prefix. It caches these vectors in Streamlit session state so later questions about the same chunks can reuse them.
+6. Compares the question embedding with each chunk embedding using cosine similarity.
+7. Keeps chunks scoring at least `0.4`, sorts them from highest to lowest score, then selects up to three chunks from distinct source labels.
+8. Sends the conversation and selected, labeled chunk text to the local Gemma chat model. Labels appear as `[P4]` or `[Page 3]` according to the uploaded file.
+9. Renders the answer and displays the original source text for each citation that matches the current upload.
 
 Without an uploaded file, retrieval returns no passages and the tutor can answer as a normal local chat.
 
@@ -24,9 +26,10 @@ Without an uploaded file, retrieval returns no passages and the tutor can answer
 |---|---|---|
 | `cosine_similarity` | Compares two embedding vectors and returns a similarity score. | Ranking is predictable math; the language model does not need to decide which paragraph is closest. |
 | `get_embedding` | Calls Ollama's local embedding API and returns a vector for one text. | Keeps the HTTP request and Nomic task prefixes in one place. |
-| `get_paragraph_embeddings` | Builds or reuses embeddings for the uploaded paragraphs. | Embeddings do not change when the question changes, so caching avoids repeating those model calls. |
-| `create_chunks` | Splits long paragraphs into word windows with a small overlap, preserving the original paragraph number. | Long source blocks may contain multiple ideas; overlap helps retain context across a split. This helper is currently **not yet connected** to retrieval, which still embeds whole paragraphs. |
-| `find_relevant_paragraphs` | Embeds a question, ranks paragraphs, applies the cutoff, and returns the top matches. | Separates retrieval from prompt construction and display. |
+| `extract_pdf_pages` | Extracts selectable text from each PDF page and returns `(page number, text)` pairs. | Keeping page numbers with extracted text supports page citations. |
+| `create_chunks` | Splits labeled sources into overlapping word windows and preserves each source label. | Long source blocks may contain multiple ideas; overlap helps retain context across a split. |
+| `get_chunk_embeddings` | Builds or reuses one embedding per chunk. | Source chunks do not change when the question changes, so caching avoids repeating those model calls. |
+| `find_relevant_paragraphs` | Embeds a question, ranks chunks, applies the cutoff, and returns the strongest matches from distinct source labels. | Separates retrieval from prompt construction and display while avoiding repeated citations from one long paragraph or page. |
 | `ask_ollama` | Sends the tutor instructions, conversation history, and retrieved sources to the chat endpoint. | Keeps chat prompting and its HTTP request separate from retrieval. |
 
 ## Important concepts in this code
@@ -43,24 +46,24 @@ Cosine similarity compares vector directions. `find_relevant_paragraphs` uses `S
 
 ### Caching in session state
 
-`get_paragraph_embeddings` uses the tuple of paragraph text as its cache key. If the text is unchanged, it reuses the saved vectors. If the upload changes, it builds a new set. The cache lives in the current Streamlit session; it is not a persistent on-disk embedding database. The terminal messages in this function are temporary diagnostics that show whether the code rebuilt or reused the cache.
+`get_chunk_embeddings` uses the tuple of `(source label, chunk text)` pairs as its cache key. If the chunks are unchanged, it reuses the saved vectors. If the upload or chunk boundaries change, it builds a new set. The cache lives in the current Streamlit session; it is not a persistent on-disk embedding database. The terminal messages in this function are temporary diagnostics that show whether the code rebuilt or reused the cache.
 
 ### Chunks and citations
 
-The current retrieval unit is one blank-line-separated source paragraph. `create_chunks` is the next step toward handling long paragraphs: each returned item is `(original_paragraph_number, chunk_text)`. Several chunks may share the same paragraph number, which allows retrieved snippets to retain a link to the original source paragraph for citations.
+The current retrieval unit is a chunk; its original source label is retained as metadata. Each item returned by `create_chunks` is `(source_label, chunk_text)`. A text paragraph uses a label such as `P4`; a PDF page uses `Page 3`. Several chunks may share a label, which lets retrieved snippets link back to the correct original passage.
 
-`max_words` controls chunk size, and `overlap_words` repeats trailing words at the beginning of the next chunk. The function checks that the overlap is smaller than the chunk size; otherwise the loop might fail to advance. The helper is present for learning, but the main retrieval path does not use it yet.
+`max_words` controls chunk size, and `overlap_words` repeats trailing words at the beginning of the next chunk. The function checks that the overlap is smaller than the chunk size; otherwise the loop might fail to advance. Retrieval keeps only the best-scoring chunk for each source label, then takes up to three distinct sources.
 
 ## Streamlit interface and state
 
-Streamlit reruns the Python file as the learner interacts with widgets. `st.session_state.messages` preserves the chat transcript across those reruns. The separate embedding cache keys its vectors against the source paragraphs, so questions can change while the source embeddings stay reusable.
+Streamlit reruns the Python file as the learner interacts with widgets. `st.session_state.messages` preserves the chat transcript across those reruns. The embedding cache keys vectors against the source chunks, so questions can change while the source embeddings stay reusable.
 
 The interface has four main areas:
 
-- Topic input and optional `.txt` upload.
+- Topic input and optional `.txt` or `.pdf` upload.
 - Clear-conversation action.
 - Start-learning action, which runs retrieval and chat.
-- Transcript rendering, including source text for valid paragraph citations.
+- Transcript rendering, including source text for valid paragraph or page citations.
 
 ## Commenting convention going forward
 

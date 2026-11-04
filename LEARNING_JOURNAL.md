@@ -70,4 +70,8 @@ The learner asked that new concepts, libraries, and technologies be explained be
 
 ### Chunking
 
-The learner added a `create_chunks` helper that splits long paragraphs into overlapping word windows while retaining each original paragraph number for citations. This helper is not yet connected to semantic retrieval. The helper's loop variable was mistyped initially; that was corrected. Continue by reviewing the helper and then connect chunk records to embedding and retrieval without losing original citation IDs.
+The learner added a `create_chunks` helper that splits long paragraphs into overlapping word windows while retaining each original paragraph number for citations, then added a cached `get_chunk_embeddings` helper. Semantic retrieval now embeds and ranks chunks, selects the best chunk from up to three distinct source paragraphs, and returns the original paragraph IDs with the selected text. The user manually typed and corrected the code; its Python syntax was checked. Keep the walkthrough and diagram current as the retrieval flow changes. A useful next check is to run the app on answerable and unrelated questions with source material that includes at least one paragraph longer than the 150-word chunk limit.
+
+### PDF text extraction and source labels
+
+The learner added `pypdf` and an `extract_pdf_pages` helper that returns selectable PDF text paired with one-based page numbers. Retrieval source records now carry labels (`P1` for text paragraphs and `Page 1` for PDF pages) through chunking, embedding cache keys, prompt construction, and answer citation display. The learner manually typed the code in guided steps. Image-only scanned PDF pages are not handled yet and will require OCR. Next, manually try a text file and a text-based PDF and observe whether answers cite the appropriate source labels and show their original text.
