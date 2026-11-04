@@ -75,3 +75,7 @@ The learner added a `create_chunks` helper that splits long paragraphs into over
 ### PDF text extraction and source labels
 
 The learner added `pypdf` and an `extract_pdf_pages` helper that returns selectable PDF text paired with one-based page numbers. Retrieval source records now carry labels (`P1` for text paragraphs and `Page 1` for PDF pages) through chunking, embedding cache keys, prompt construction, and answer citation display. The learner manually typed the code in guided steps. Image-only scanned PDF pages are not handled yet and will require OCR. Next, manually try a text file and a text-based PDF and observe whether answers cite the appropriate source labels and show their original text.
+
+### Processing status and citation labels
+
+The learner replaced the generic spinner around question handling with a Streamlit status container that reports retrieval, embedding, cache reuse, and answer-generation stages. During a fresh source embedding pass it displays the completed chunk count; when the source chunks are unchanged it reports that cached embeddings are being reused. The learner tested the build and cache status on repeated questions. The chat prompt now receives the exact citation labels retrieved for the current question, which helps the model preserve `P#` labels for text files and `Page #` labels for PDFs. The learner confirmed PDF citations and source captions display correctly. The README launch command now points to `first_app.py`, the document-grounded app, rather than the earlier chat-only `app.py` prototype.

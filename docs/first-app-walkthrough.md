@@ -15,7 +15,7 @@ When the learner uploads a text or PDF file and asks a question, the app:
 5. Embeds each chunk's text with the `search_document` prefix. It caches these vectors in Streamlit session state so later questions about the same chunks can reuse them.
 6. Compares the question embedding with each chunk embedding using cosine similarity.
 7. Keeps chunks scoring at least `0.4`, sorts them from highest to lowest score, then selects up to three chunks from distinct source labels.
-8. Sends the conversation and selected, labeled chunk text to the local Gemma chat model. Labels appear as `[P4]` or `[Page 3]` according to the uploaded file.
+8. Sends the conversation and selected, labeled chunk text to the local Gemma chat model. The system prompt lists the exact labels available for this answer, such as `[P4]` or `[Page 3]`, to help the model cite the right source type.
 9. Renders the answer and displays the original source text for each citation that matches the current upload.
 
 Without an uploaded file, retrieval returns no passages and the tutor can answer as a normal local chat.
@@ -28,8 +28,8 @@ Without an uploaded file, retrieval returns no passages and the tutor can answer
 | `get_embedding` | Calls Ollama's local embedding API and returns a vector for one text. | Keeps the HTTP request and Nomic task prefixes in one place. |
 | `extract_pdf_pages` | Extracts selectable text from each PDF page and returns `(page number, text)` pairs. | Keeping page numbers with extracted text supports page citations. |
 | `create_chunks` | Splits labeled sources into overlapping word windows and preserves each source label. | Long source blocks may contain multiple ideas; overlap helps retain context across a split. |
-| `get_chunk_embeddings` | Builds or reuses one embedding per chunk. | Source chunks do not change when the question changes, so caching avoids repeating those model calls. |
-| `find_relevant_paragraphs` | Embeds a question, ranks chunks, applies the cutoff, and returns the strongest matches from distinct source labels. | Separates retrieval from prompt construction and display while avoiding repeated citations from one long paragraph or page. |
+| `get_chunk_embeddings` | Builds or reuses one embedding per chunk and reports chunk counts through the status container. | Source chunks do not change when the question changes, so caching avoids repeating those model calls; the status label shows whether vectors are being built or reused. |
+| `find_relevant_paragraphs` | Embeds a question, ranks chunks, applies the cutoff, and returns the strongest matches from distinct source labels. It passes the optional status container to embedding work. | Separates retrieval from prompt construction and display while avoiding repeated citations from one long paragraph or page. |
 | `ask_ollama` | Sends the tutor instructions, conversation history, and retrieved sources to the chat endpoint. | Keeps chat prompting and its HTTP request separate from retrieval. |
 
 ## Important concepts in this code
@@ -46,7 +46,7 @@ Cosine similarity compares vector directions. `find_relevant_paragraphs` uses `S
 
 ### Caching in session state
 
-`get_chunk_embeddings` uses the tuple of `(source label, chunk text)` pairs as its cache key. If the chunks are unchanged, it reuses the saved vectors. If the upload or chunk boundaries change, it builds a new set. The cache lives in the current Streamlit session; it is not a persistent on-disk embedding database. The terminal messages in this function are temporary diagnostics that show whether the code rebuilt or reused the cache.
+`get_chunk_embeddings` uses the tuple of `(source label, chunk text)` pairs as its cache key. If the chunks are unchanged, it reuses the saved vectors. If the upload or chunk boundaries change, it builds a new set. The cache lives in the current Streamlit session; it is not a persistent on-disk embedding database. When a status container is passed in, the app reports each embedding count during a build and identifies a cache hit. The terminal messages are temporary diagnostics that show the same build-versus-reuse distinction.
 
 ### Chunks and citations
 
@@ -58,11 +58,14 @@ The current retrieval unit is a chunk; its original source label is retained as 
 
 Streamlit reruns the Python file as the learner interacts with widgets. `st.session_state.messages` preserves the chat transcript across those reruns. The embedding cache keys vectors against the source chunks, so questions can change while the source embeddings stay reusable.
 
+The **Start Learning** flow uses `st.status` to show the current task stage. It reports retrieval, embedding progress when chunks are rebuilt, cache reuse when they are unchanged, and answer generation. It uses a count for embedding work rather than a percentage because the number of chunks is known while each chunk is processed.
+
 The interface has four main areas:
 
 - Topic input and optional `.txt` or `.pdf` upload.
 - Clear-conversation action.
 - Start-learning action, which runs retrieval and chat.
+- Status container, which reports retrieval, embedding, cache, and generation stages.
 - Transcript rendering, including source text for valid paragraph or page citations.
 
 ## Commenting convention going forward
