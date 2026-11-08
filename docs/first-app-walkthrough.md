@@ -2,7 +2,7 @@
 
 This document explains why the main parts of `first_app.py` exist and how data moves through the current AI Peer prototype. The app uses Ollama locally for both embeddings and chat, while Streamlit provides the interface and keeps the current conversation in session state.
 
-For a visual version of the semantic retrieval path, see [the semantic-search diagram](../diagrams/semantic-search.md).
+For a visual version of the hybrid retrieval path, see [the retrieval diagram](../diagrams/semantic-search.md).
 
 ## The end-to-end flow
 
@@ -13,10 +13,11 @@ When the learner uploads a text or PDF file and asks a question, the app:
 3. Splits each labeled source into word-based chunks. The default chunk size is 150 words with 25 words of overlap; each chunk retains its source label.
 4. Embeds the question with the `search_query` prefix.
 5. Embeds each chunk's text with the `search_document` prefix. It caches these vectors in Streamlit session state so later questions about the same chunks can reuse them.
-6. Compares the question embedding with each chunk embedding using cosine similarity.
-7. Keeps chunks scoring at least `0.4`, sorts them from highest to lowest score, then selects up to three chunks from distinct source labels.
-8. Sends the conversation and selected, labeled chunk text to the local Gemma chat model. The system prompt lists the exact labels available for this answer, such as `[P4]` or `[Page 3]`, to help the model cite the right source type.
-9. Renders the answer and displays the original source text for each citation that matches the current upload.
+6. Compares the question embedding with each chunk embedding using cosine similarity. Chunks scoring at least `0.4` enter the semantic ranking, ordered from highest similarity to lowest.
+7. Calculates a keyword score for each chunk: the fraction of distinct, non-stop-word question terms that also occur in the chunk. Chunks with a positive score enter the keyword ranking, ordered from highest keyword score to lowest.
+8. Combines the semantic and keyword rankings with Reciprocal Rank Fusion (RRF). For each appearance of a chunk in a ranking, RRF adds `1 / (60 + rank)` to that chunk's fused score. It then sorts chunks by the summed score and selects up to three chunks from distinct source labels.
+9. Sends the conversation and selected, labeled chunk text to the local Gemma chat model. The system prompt lists the exact labels available for this answer, such as `[P4]` or `[Page 3]`, to help the model cite the right source type.
+10. Renders the answer and displays the original source text for each citation that matches the current upload.
 
 Without an uploaded file, retrieval returns no passages and the tutor can answer as a normal local chat.
 
@@ -29,7 +30,9 @@ Without an uploaded file, retrieval returns no passages and the tutor can answer
 | `extract_pdf_pages` | Extracts selectable text from each PDF page and returns `(page number, text)` pairs. | Keeping page numbers with extracted text supports page citations. |
 | `create_chunks` | Splits labeled sources into overlapping word windows and preserves each source label. | Long source blocks may contain multiple ideas; overlap helps retain context across a split. |
 | `get_chunk_embeddings` | Builds or reuses one embedding per chunk and reports chunk counts through the status container. | Source chunks do not change when the question changes, so caching avoids repeating those model calls; the status label shows whether vectors are being built or reused. |
-| `find_relevant_paragraphs` | Embeds a question, ranks chunks, applies the cutoff, and returns the strongest matches from distinct source labels. It passes the optional status container to embedding work. | Separates retrieval from prompt construction and display while avoiding repeated citations from one long paragraph or page. |
+| `get_keyword_score` | Measures the fraction of useful question terms also found in one chunk, ignoring common stop words. | Exact term overlap can surface names and terminology that semantic similarity may rank lower. |
+| `fuse_ranked_chunks` | Combines semantic and keyword rankings with RRF, summing `1 / (60 + rank)` for each ranking that contains a chunk. | Rank positions can be combined even though cosine similarity and keyword scores use different numeric scales. |
+| `find_relevant_paragraphs` | Builds semantic and keyword rankings, fuses them, and returns the strongest chunks from distinct source labels. It passes the optional status container to embedding work. | Separates retrieval from prompt construction and display while avoiding repeated selections from one long paragraph or page. |
 | `ask_ollama` | Sends the tutor instructions, conversation history, and retrieved sources to the chat endpoint. | Keeps chat prompting and its HTTP request separate from retrieval. |
 
 ## Important concepts in this code
@@ -53,6 +56,14 @@ Cosine similarity compares vector directions. `find_relevant_paragraphs` uses `S
 The current retrieval unit is a chunk; its original source label is retained as metadata. Each item returned by `create_chunks` is `(source_label, chunk_text)`. A text paragraph uses a label such as `P4`; a PDF page uses `Page 3`. Several chunks may share a label, which lets retrieved snippets link back to the correct original passage.
 
 `max_words` controls chunk size, and `overlap_words` repeats trailing words at the beginning of the next chunk. The function checks that the overlap is smaller than the chunk size; otherwise the loop might fail to advance. Retrieval keeps only the best-scoring chunk for each source label, then takes up to three distinct sources.
+
+### Keyword matching and Reciprocal Rank Fusion
+
+`get_keyword_score` lowercases question and chunk text, extracts alphanumeric terms, removes the entries in `STOP_WORDS`, and compares the remaining unique terms. The score is the count of matching terms divided by the number of useful question terms. For example, if the meaningful question terms are `{weights, adjusted, training}` and a chunk contains `{weights, training}`, the score is `2 / 3`. This is exact token matching: it does not know that `adjust` and `adjusted` are related, and it does not find synonyms by itself. Embedding-based semantic retrieval handles that complementary case.
+
+The two retrieval methods produce incomparable raw numbers: semantic retrieval returns cosine similarity, while keyword retrieval returns a term-overlap fraction. RRF avoids adding those raw scores. Each ranked list contributes `1 / (k + rank)` for a chunk, starting at rank 1, and the contributions are added; this implementation uses `k = 60`. A chunk ranked highly in both lists can receive a contribution from both. The RRF method was introduced for combining ranked search results; see the [original RRF paper](https://cormack.uwaterloo.ca/cormacksigir09-rrf.pdf).
+
+RRF was selected as an understandable baseline instead of choosing and tuning a weighted blend of the raw scores. Its limitation is that it uses rank order and ignores score gaps: two nearly tied chunks and two chunks with very different raw scores can have the same rank positions. In this implementation, the semantic list keeps the existing `SIMILARITY_THRESHOLD` cutoff, and the keyword list includes only chunks with a positive keyword score. The learner confirmed that changing question words to synonyms still retrieved relevant PDF content; page citations in multiple answer locations are expected when multiple claims use the same page.
 
 ## Streamlit interface and state
 

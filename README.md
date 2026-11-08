@@ -37,7 +37,7 @@ Ollama serves the model locally at `http://localhost:11434`. The app uses that l
 
 - Local tutoring with conversation history for the current browser session.
 - Accepts one `.txt` or selectable-text `.pdf` learning source at a time.
-- Uses semantic search over overlapping chunks and cites matching paragraphs or PDF pages.
+- Uses hybrid retrieval (semantic similarity, keyword matching, and RRF) over overlapping chunks and cites matching paragraphs or PDF pages.
 - Caches source chunk embeddings during the current Streamlit session.
 - Shows retrieval, embedding, cache, and response-generation status while answering.
 - Keeps learner progress across sessions and adaptive learning workflows as future work.
@@ -48,4 +48,4 @@ The complete project vision and planning options are in [PROJECT_PLAN.md](PROJEC
 
 ## Learning the prototype
 
-The guided explanation of the learner-authored app is in [docs/first-app-walkthrough.md](docs/first-app-walkthrough.md). The current semantic-search flow is also shown in [diagrams/semantic-search.md](diagrams/semantic-search.md).
+The guided explanation of the learner-authored app is in [docs/first-app-walkthrough.md](docs/first-app-walkthrough.md). The current hybrid-retrieval flow is also shown in [diagrams/semantic-search.md](diagrams/semantic-search.md).

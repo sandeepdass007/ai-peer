@@ -1,8 +1,8 @@
-# Semantic Search in AI Peer
+# Hybrid Retrieval in AI Peer
 
-This diagram shows how AI Peer handles labeled text or PDF sources, chunks them, and uses embeddings and cosine similarity to find relevant passages.
+This diagram shows how AI Peer combines semantic similarity with exact keyword matching, then uses Reciprocal Rank Fusion (RRF) to rank relevant passages from labeled text or PDF sources.
 
-The scores are illustrative examples, not scores measured from the app. The current similarity cutoff is `0.4`.
+The scores and ranks are illustrative examples, not values measured from the app. The current semantic similarity cutoff is `0.4`; RRF uses a rank constant of `60`.
 
 ```mermaid
 flowchart TD
@@ -23,12 +23,16 @@ flowchart TD
     QE --> C["Compare vectors with cosine similarity"]
     CACHE --> C
 
-    C --> S1["P4 chunk score: 0.63 — above 0.4 cutoff"]
-    C --> S2["Page 2 chunk score: 0.21 — below 0.4 cutoff"]
+    C --> SL["Semantic ranking; keep scores at least 0.4"]
+    Q --> KW["Tokenize question and chunk; ignore stop words"]
+    CH --> KW
+    KW --> KL["Keyword ranking by fraction of question terms matched"]
 
-    S1 --> R["Select best chunk per source; provide it to Gemma with label [P4]"]
-    S2 --> X["Exclude Page 2 chunk"]
-    R --> A["Gemma answers using the selected source"]
+    SL --> F["RRF adds 1 / (60 + rank) from each ranking"]
+    KL --> F
+    F --> R["Sort by fused score; select up to three distinct source labels"]
+    R --> A["Send selected labeled sources to Gemma"]
+    A --> OUT["Answer cites the source label, such as [P4] or [Page 2]"]
 ```
 
 ## What the diagram demonstrates
@@ -38,8 +42,11 @@ flowchart TD
 - **PDF extraction:** Selectable page text can be extracted; image-only scanned pages need OCR, which is not implemented yet.
 - **Chunking:** Long sources become overlapping word windows. Each chunk keeps its source label as metadata for citations.
 - **Semantic matching:** A question and chunk can use different words and still have similar vectors.
-- **Cosine similarity:** AI Peer compares the question vector with each chunk vector to rank passages by similarity.
-- **Cutoff:** AI Peer keeps chunks scoring at least `0.4`, then returns up to three chunks from distinct source labels.
+- **Keyword matching:** AI Peer scores the fraction of useful question terms that appear in each chunk. This can help with exact names and terminology but does not itself match synonyms.
+- **Reciprocal Rank Fusion:** The semantic and keyword lists have different score scales. RRF combines their rank positions by adding `1 / (60 + rank)` for each list containing a chunk, avoiding a hand-tuned weighted sum of raw scores.
+- **Selection:** The semantic list applies the `0.4` cutoff; the keyword list keeps chunks with at least one matching useful term. AI Peer fuses the lists, then returns up to three chunks from distinct source labels.
 - **Grounded answer:** Selected passages are sent to Gemma as reference material, with their original paragraph or page labels for citations.
+
+RRF preserves the order of each input ranking but ignores the size of score gaps. The rank constant `60` is a fixed baseline here, not a value tuned against a benchmark for this project.
 
 Nomic uses `search_query:` for questions and `search_document:` for source passages so it can treat each text according to its role in retrieval.
