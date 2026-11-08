@@ -32,6 +32,7 @@ flowchart TD
     KL --> F
     F --> R["Sort by fused score; select up to three distinct source labels"]
     R --> A["Send selected labeled sources to Gemma"]
+    R --> D["Show selected chunks and their semantic, keyword, and fused ranks in an expander"]
     A --> OUT["Answer cites the source label, such as [P4] or [Page 2]"]
 ```
 
@@ -45,6 +46,7 @@ flowchart TD
 - **Keyword matching:** AI Peer scores the fraction of useful question terms that appear in each chunk. This can help with exact names and terminology but does not itself match synonyms.
 - **Reciprocal Rank Fusion:** The semantic and keyword lists have different score scales. RRF combines their rank positions by adding `1 / (60 + rank)` for each list containing a chunk, avoiding a hand-tuned weighted sum of raw scores.
 - **Selection:** The semantic list applies the `0.4` cutoff; the keyword list keeps chunks with at least one matching useful term. AI Peer fuses the lists, then returns up to three chunks from distinct source labels.
+- **Retrieval diagnostics:** The expandable panel shows selected chunks' semantic rank and score, keyword rank and score, and final fused rank and score. It helps explain the evidence selected for the answer; it does not display every candidate chunk.
 - **Grounded answer:** Selected passages are sent to Gemma as reference material, with their original paragraph or page labels for citations.
 
 RRF preserves the order of each input ranking but ignores the size of score gaps. The rank constant `60` is a fixed baseline here, not a value tuned against a benchmark for this project.

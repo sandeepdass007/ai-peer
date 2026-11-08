@@ -201,12 +201,12 @@ def find_relevant_paragraphs(
   question: str,
   sources: list[tuple[str, str]],
   status=None
-) -> list[tuple[str, str]]:
+) -> tuple[list[tuple[str, str]], list[dict]]:
   """Retrieve the best source chunks while preserving their citation labels.
     It also reports the embeddings progress when given a status container.
   """
   if not sources:
-    return []
+    return [], []
 
   question_embedding = get_embedding(question, "search_query")
   chunks = create_chunks(sources)
@@ -234,6 +234,22 @@ def find_relevant_paragraphs(
   semantic_ranked_chunks.sort(key=lambda item: item[0], reverse=True)
   keyword_ranked_chunks.sort(key=lambda item: item[0], reverse=True)
 
+  semantic_details = {
+    (source_label, chunk_text): {"rank": rank, "score": score}
+    for rank, (score, source_label, chunk_text) in enumerate(
+      semantic_ranked_chunks,
+      start=1
+    )
+  }
+
+  keyword_details = {
+    (source_label, chunk_text): {"rank": rank, "score": score}
+    for rank, (score, source_label, chunk_text) in enumerate(
+      keyword_ranked_chunks,
+      start=1
+    )
+  }
+
   ranked_chunks = fuse_ranked_chunks(
     semantic_ranked_chunks,
     keyword_ranked_chunks
@@ -241,20 +257,33 @@ def find_relevant_paragraphs(
 
   # Keep only the strongest chunk for each source citation.
   selected_sources = []
+  retrieval_details = []
   seen_source_labels = set()
 
-  for similarity, source_label, chunk_text in ranked_chunks:
+  for fused_rank, (fused_score, source_label, chunk_text) in enumerate(
+    ranked_chunks,
+    start=1
+  ):
     if source_label in seen_source_labels:
       continue
 
     selected_sources.append((source_label, chunk_text))
+    retrieval_details.append(
+      {
+        "source_label": source_label,
+        "chunk_text": chunk_text,
+        "fused_rank": fused_rank,
+        "fused_score": fused_score,
+        "semantic": semantic_details.get((source_label, chunk_text)),
+        "keyword": keyword_details.get((source_label, chunk_text))
+      }
+    )
     seen_source_labels.add(source_label)
 
     if len(selected_sources) == MAX_RELEVANT_PARAGRAPHS:
       break
 
-  return selected_sources
-
+  return selected_sources, retrieval_details
 
 def ask_ollama(
   messages: list[dict[str, str]],
@@ -396,7 +425,7 @@ if st.button("Start Learning"):
   if topic:
     with st.status("Working on your question...", expanded=True) as status:
       status.write("Preparing search and finding relevant passages...")
-      relevant_sources = find_relevant_paragraphs(topic, sources, status)
+      relevant_sources, retrieval_details = find_relevant_paragraphs(topic, sources, status)
 
       if sources and not relevant_sources:
         status.update(
@@ -431,6 +460,36 @@ if st.button("Start Learning"):
             }
           )
           status.update(label="Answer ready", state="complete")
+
+    if retrieval_details:
+      with st.expander("Why these sources were selected", expanded=True):
+        for detail in retrieval_details:
+          semantic = detail["semantic"]
+          keyword = detail["keyword"]
+
+          st.markdown(
+            f"**[{detail['source_label']}] - fused rank "
+            f"{detail['fused_rank']}**"
+          )
+          st.write(f"RRF score: {detail['fused_score']:.4f}")
+
+          if semantic:
+            st.write(
+              f"Semantic: rank {semantic['rank']}, "
+              f"cosine similarity {semantic['score']:.3f}"
+            )
+          else:
+            st.write("Semantic: not included (below the similarity cutoff)")
+
+          if keyword:
+            st.write(
+              f"Keyword: rank {keyword['rank']}, "
+              f"term overlap {keyword['score']:.3f}"
+            )
+          else:
+            st.write("Keyword: not included (no useful terms matched)")
+
+          st.caption(detail["chunk_text"])
   else:
     st.warning("Enter a topic before starting.")
 

@@ -38,6 +38,7 @@ Ollama serves the model locally at `http://localhost:11434`. The app uses that l
 - Local tutoring with conversation history for the current browser session.
 - Accepts one `.txt` or selectable-text `.pdf` learning source at a time.
 - Uses hybrid retrieval (semantic similarity, keyword matching, and RRF) over overlapping chunks and cites matching paragraphs or PDF pages.
+- Shows selected chunks' semantic, keyword, and fused ranks in an expandable retrieval-details panel.
 - Caches source chunk embeddings during the current Streamlit session.
 - Shows retrieval, embedding, cache, and response-generation status while answering.
 - Keeps learner progress across sessions and adaptive learning workflows as future work.

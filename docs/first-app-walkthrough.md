@@ -16,8 +16,9 @@ When the learner uploads a text or PDF file and asks a question, the app:
 6. Compares the question embedding with each chunk embedding using cosine similarity. Chunks scoring at least `0.4` enter the semantic ranking, ordered from highest similarity to lowest.
 7. Calculates a keyword score for each chunk: the fraction of distinct, non-stop-word question terms that also occur in the chunk. Chunks with a positive score enter the keyword ranking, ordered from highest keyword score to lowest.
 8. Combines the semantic and keyword rankings with Reciprocal Rank Fusion (RRF). For each appearance of a chunk in a ranking, RRF adds `1 / (60 + rank)` to that chunk's fused score. It then sorts chunks by the summed score and selects up to three chunks from distinct source labels.
-9. Sends the conversation and selected, labeled chunk text to the local Gemma chat model. The system prompt lists the exact labels available for this answer, such as `[P4]` or `[Page 3]`, to help the model cite the right source type.
-10. Renders the answer and displays the original source text for each citation that matches the current upload.
+9. Returns both the selected labeled chunks and diagnostic details for them: fused position and score, plus semantic and keyword rank and score when available. The Streamlit interface shows these details in an expandable panel so the learner can see how each selected chunk ranked.
+10. Sends the conversation and selected, labeled chunk text to the local Gemma chat model. The system prompt lists the exact labels available for this answer, such as `[P4]` or `[Page 3]`, to help the model cite the right source type.
+11. Renders the answer and displays the original source text for each citation that matches the current upload.
 
 Without an uploaded file, retrieval returns no passages and the tutor can answer as a normal local chat.
 
@@ -32,7 +33,7 @@ Without an uploaded file, retrieval returns no passages and the tutor can answer
 | `get_chunk_embeddings` | Builds or reuses one embedding per chunk and reports chunk counts through the status container. | Source chunks do not change when the question changes, so caching avoids repeating those model calls; the status label shows whether vectors are being built or reused. |
 | `get_keyword_score` | Measures the fraction of useful question terms also found in one chunk, ignoring common stop words. | Exact term overlap can surface names and terminology that semantic similarity may rank lower. |
 | `fuse_ranked_chunks` | Combines semantic and keyword rankings with RRF, summing `1 / (60 + rank)` for each ranking that contains a chunk. | Rank positions can be combined even though cosine similarity and keyword scores use different numeric scales. |
-| `find_relevant_paragraphs` | Builds semantic and keyword rankings, fuses them, and returns the strongest chunks from distinct source labels. It passes the optional status container to embedding work. | Separates retrieval from prompt construction and display while avoiding repeated selections from one long paragraph or page. |
+| `find_relevant_paragraphs` | Builds semantic and keyword rankings, fuses them, and returns the strongest chunks from distinct source labels together with diagnostic ranks and scores. It passes the optional status container to embedding work. | Separates retrieval from prompt construction and display while avoiding repeated selections from one long paragraph or page; the diagnostics make the selected evidence explainable to the learner. |
 | `ask_ollama` | Sends the tutor instructions, conversation history, and retrieved sources to the chat endpoint. | Keeps chat prompting and its HTTP request separate from retrieval. |
 
 ## Important concepts in this code
@@ -71,12 +72,15 @@ Streamlit reruns the Python file as the learner interacts with widgets. `st.sess
 
 The **Start Learning** flow uses `st.status` to show the current task stage. It reports retrieval, embedding progress when chunks are rebuilt, cache reuse when they are unchanged, and answer generation. It uses a count for embedding work rather than a percentage because the number of chunks is known while each chunk is processed.
 
-The interface has four main areas:
+After retrieval, an expandable **Why these sources were selected** panel lists each selected chunk's source label and text, fused rank and score, and its semantic and keyword ranks and scores where available. A missing semantic entry means the chunk did not meet the similarity cutoff; a missing keyword entry means there was no positive useful-term overlap. The panel explains the selected evidence (up to three distinct source labels); it is not a full display of every candidate chunk. RRF scores are sums of reciprocal-rank contributions, not probabilities or similarity percentages.
+
+The interface has these main areas:
 
 - Topic input and optional `.txt` or `.pdf` upload.
 - Clear-conversation action.
 - Start-learning action, which runs retrieval and chat.
 - Status container, which reports retrieval, embedding, cache, and generation stages.
+- Expandable retrieval details, which show why the selected source chunks ranked well.
 - Transcript rendering, including source text for valid paragraph or page citations.
 
 ## Commenting convention going forward
